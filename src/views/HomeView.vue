@@ -1,7 +1,8 @@
 <script setup>
-import { inject, onMounted } from 'vue'
+import {inject, onMounted, ref} from 'vue'
 
 const api = inject('api')
+let ping = ref('')
 
 onMounted(() => {
     fetchPingApi()
@@ -10,7 +11,7 @@ onMounted(() => {
 async function fetchPingApi() {
     try {
         let response = await api.get('/api/ping')
-        console.log(response.data)
+        ping.value = response.data
     } catch (error) {
         console.error('Error while fetching ping')
         console.error(error)
@@ -20,7 +21,9 @@ async function fetchPingApi() {
 
 <template>
     <div>
-        <h1>Home</h1>
+        <h2>Home</h2>
+
+        {{ ping.message }}
     </div>
 </template>
 
