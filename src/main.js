@@ -5,7 +5,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-import {pluginAxios} from "@/plugins/api.js";
+import { pluginAxios } from '@/plugins/api.js'
 
 const app = createApp(App)
 
@@ -14,7 +14,7 @@ app.use(router)
 
 app.use(pluginAxios, {
     baseURL: import.meta.env.VITE_API_URL,
-    apiKey: import.meta.env.VITE_API_KEY
+    apiKey: import.meta.env.VITE_API_KEY,
 })
 
 app.mount('#app')
