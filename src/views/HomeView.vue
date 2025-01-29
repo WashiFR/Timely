@@ -1,5 +1,5 @@
 <script setup>
-import {inject, onMounted, ref} from 'vue'
+import { inject, onMounted, ref } from 'vue'
 
 const api = inject('api')
 let ping = ref('')
