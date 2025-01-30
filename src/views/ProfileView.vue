@@ -34,7 +34,7 @@ async function fetchUpdateProfile() {
 function saveProfile() {
     fetchUpdateProfile()
         .then(() => {
-            alert('Profile saved')
+            toast.success('Profile updated', {theme: 'colored'});
         })
         .catch((error) => {
             error.response.data.errors.forEach((error) => {
