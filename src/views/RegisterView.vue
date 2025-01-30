@@ -2,6 +2,8 @@
 import { useApiKeysStore } from '@/stores/apiKeys.js'
 import { inject, ref } from 'vue'
 import router from '@/router/index.js'
+import {toast} from "vue3-toastify";
+import 'vue3-toastify/dist/index.css';
 
 const api = inject('api')
 const apiKeysStore = useApiKeysStore()
@@ -18,16 +20,23 @@ async function fetchGetApiKey() {
         })
         apiKey.value = response.data
     } catch (error) {
-        console.error('Error while fetching api key')
-        console.error(error)
+        console.error('Error while registering')
+        return Promise.reject(error)
     }
 }
 
 function register() {
-    fetchGetApiKey().then(() => {
-        apiKeysStore.setApiKey(apiKey.value.key)
-        router.push({ name: 'Home' })
-    })
+    fetchGetApiKey()
+        .then(() => {
+            apiKeysStore.setApiKey(apiKey.value.key)
+            router.push({ name: 'Home' })
+        })
+        .catch((error) => {
+            apiKeysStore.setApiKey('')
+            error.response.data.errors.forEach((error) => {
+                toast.error(error, {theme: 'colored'});
+            })
+        })
 }
 </script>
 
