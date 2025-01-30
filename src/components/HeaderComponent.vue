@@ -1,8 +1,12 @@
-<script setup></script>
+<script setup>
+import LogoutButton from "@/components/LogoutButton.vue";
+</script>
 
 <template>
     <header>
         <h2>Timely</h2>
+
+        <LogoutButton />
     </header>
 </template>
 
