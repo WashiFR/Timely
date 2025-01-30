@@ -1,5 +1,7 @@
 <script setup>
 import { inject, onMounted, ref } from 'vue'
+import {toast} from "vue3-toastify";
+import 'vue3-toastify/dist/index.css';
 
 const api = inject('api')
 
@@ -13,7 +15,7 @@ async function fetchGetProfile() {
         email.value = response.data.email
     } catch (error) {
         console.error('Error while fetching profile')
-        console.error(error)
+        return Promise.reject(error)
     }
 }
 
@@ -25,14 +27,20 @@ async function fetchUpdateProfile() {
         })
     } catch (error) {
         console.error('Error while updating profile')
-        console.error(error)
+        return Promise.reject(error)
     }
 }
 
 function saveProfile() {
-    fetchUpdateProfile().then(() => {
-        alert('Profile saved')
-    })
+    fetchUpdateProfile()
+        .then(() => {
+            alert('Profile saved')
+        })
+        .catch((error) => {
+            error.response.data.errors.forEach((error) => {
+                toast.error(error, {theme: 'colored'});
+            })
+        })
 }
 
 onMounted(() => {
