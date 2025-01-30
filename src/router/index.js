@@ -31,10 +31,26 @@ const router = createRouter({
             path: '/login',
             name: 'Login',
             component: () => import('@/views/LoginView.vue'),
+            beforeEnter: (to, from, next) => {
+                const apiKeysStore = useApiKeysStore()
+                if (apiKeysStore.hasApiKey) {
+                    next({ name: 'Home' })
+                } else {
+                    next()
+                }
+            }
         },
         {
             path: '/register',
             component: () => import('@/views/RegisterView.vue'),
+            beforeEnter: (to, from, next) => {
+                const apiKeysStore = useApiKeysStore()
+                if (apiKeysStore.hasApiKey) {
+                    next({ name: 'Home' })
+                } else {
+                    next()
+                }
+            }
         },
         {
             path: '/settings',
