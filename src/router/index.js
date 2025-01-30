@@ -1,11 +1,29 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import {useApiKeysStore} from "@/stores/apiKeys.js";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
             path: '/',
+            name: 'Home',
             component: () => import('@/views/HomeView.vue'),
+            beforeEnter: (to, from, next) => {
+                const apiKeysStore = useApiKeysStore()
+                if (!apiKeysStore.hasApiKey) {
+                    next('/login')
+                } else {
+                    next()
+                }
+            }
+        },
+        {
+            path: '/login',
+            component: () => import('@/views/LoginView.vue')
+        },
+        {
+            path: '/register',
+            component: () => import('@/views/RegisterView.vue')
         },
         {
             path: '/settings',
