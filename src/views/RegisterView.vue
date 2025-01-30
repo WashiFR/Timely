@@ -6,11 +6,16 @@ import router from "@/router/index.js";
 const api = inject('api')
 const apiKeysStore = useApiKeysStore()
 
+let userName = ref('')
+let email = ref('')
 let apiKey = ref('')
 
 async function fetchGetApiKey() {
     try {
-        let response = await api.post('/api/apiKeys')
+        let response = await api.post('/api/apiKeys', {
+            name: userName.value,
+            email: email.value
+        })
         apiKey.value = response.data
     } catch (error) {
         console.error('Error while fetching api key')
@@ -33,9 +38,9 @@ function register(apiKey) {
 
         <form>
             <label for="name">Name</label>
-            <input type="text" id="name" name="name" required />
+            <input type="text" id="name" name="name" v-model="userName" required />
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required />
+            <input type="email" id="email" name="email" v-model="email" required />
             <button type="submit" @click.prevent="register(apiKey)">Register</button>
         </form>
 
