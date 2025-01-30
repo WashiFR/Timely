@@ -12,7 +12,7 @@ let apiKey = ref('')
 
 async function fetchGetApiKey() {
     try {
-        let response = await api.post('/api/apiKeys', {
+        let response = await api.post('/api/apikeys', {
             name: userName.value,
             email: email.value
         })
@@ -23,10 +23,10 @@ async function fetchGetApiKey() {
     }
 }
 
-function register(apiKey) {
+function register() {
     fetchGetApiKey()
         .then(() => {
-            apiKeysStore.setApiKey(apiKey)
+            apiKeysStore.setApiKey(apiKey.value.key)
             router.push({name: 'Home'})
         })
 }
@@ -41,7 +41,7 @@ function register(apiKey) {
             <input type="text" id="name" name="name" v-model="userName" required />
             <label for="email">Email</label>
             <input type="email" id="email" name="email" v-model="email" required />
-            <button type="submit" @click.prevent="register(apiKey)">Register</button>
+            <button type="submit" @click.prevent="register()">Register</button>
         </form>
 
         <router-link to="/login">Déjà un compte ?</router-link>
