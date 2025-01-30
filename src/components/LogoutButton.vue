@@ -1,6 +1,6 @@
 <script setup>
-import { useApiKeysStore } from "@/stores/apiKeys.js";
-import router from "@/router/index.js";
+import { useApiKeysStore } from '@/stores/apiKeys.js'
+import router from '@/router/index.js'
 
 const apiKeysStore = useApiKeysStore()
 
@@ -12,7 +12,7 @@ function logout() {
     }
 
     apiKeysStore.setApiKey('')
-    router.push({name: 'Login'})
+    router.push({ name: 'Login' })
 }
 </script>
 
@@ -20,6 +20,4 @@ function logout() {
     <button @click="logout()">Logout</button>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -1,8 +1,7 @@
-import {defineStore} from "pinia";
+import { defineStore } from 'pinia'
 
 export const useApiKeysStore = defineStore('apiKeys', {
-    state()
-    {
+    state() {
         return {
             apiKey: '',
         }
@@ -13,6 +12,9 @@ export const useApiKeysStore = defineStore('apiKeys', {
     actions: {
         setApiKey(apiKey) {
             this.apiKey = apiKey
+        },
+        async tryToSetApiKey(apiKey) {
+            this.setApiKey(apiKey)
         }
     },
     persist: {
@@ -21,7 +23,7 @@ export const useApiKeysStore = defineStore('apiKeys', {
             {
                 storage: localStorage,
                 paths: ['apiKey'],
-            }
-        ]
-    }
+            },
+        ],
+    },
 })

@@ -1,7 +1,7 @@
 <script setup>
-import {useApiKeysStore} from "@/stores/apiKeys.js";
-import {inject, ref} from "vue";
-import router from "@/router/index.js";
+import { useApiKeysStore } from '@/stores/apiKeys.js'
+import { inject, ref } from 'vue'
+import router from '@/router/index.js'
 
 const api = inject('api')
 const apiKeysStore = useApiKeysStore()
@@ -14,7 +14,7 @@ async function fetchGetApiKey() {
     try {
         let response = await api.post('/api/apikeys', {
             name: userName.value,
-            email: email.value
+            email: email.value,
         })
         apiKey.value = response.data
     } catch (error) {
@@ -24,11 +24,10 @@ async function fetchGetApiKey() {
 }
 
 function register() {
-    fetchGetApiKey()
-        .then(() => {
-            apiKeysStore.setApiKey(apiKey.value.key)
-            router.push({name: 'Home'})
-        })
+    fetchGetApiKey().then(() => {
+        apiKeysStore.setApiKey(apiKey.value.key)
+        router.push({ name: 'Home' })
+    })
 }
 </script>
 
@@ -48,6 +47,4 @@ function register() {
     </div>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>
