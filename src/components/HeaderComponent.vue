@@ -3,8 +3,7 @@ import LogoutButton from '@/components/LogoutButton.vue'
 import router from '@/router/index.js'
 import { useApiKeysStore } from '@/stores/apiKeys.js'
 import { userStore } from '@/stores/userData.js'
-import { ref, computed, onMounted, inject } from 'vue'
-import { toast } from 'vue3-toastify'
+import { ref, computed, onMounted, inject, onUnmounted } from 'vue'
 
 const apiKeysStore = useApiKeysStore()
 const api = inject('api')
@@ -12,8 +11,8 @@ const userDataStore = userStore()
 
 const currentActivity = computed(() => userDataStore.currentActivity)
 const elapsedTimeUpdate = ref(0)
-const notes = ref('')
 const isActivityVisible = ref(true)
+let intervalId = null
 
 function goToRoute(routeName) {
     router.push({ name: routeName })
@@ -21,54 +20,87 @@ function goToRoute(routeName) {
 
 function fetchCurrentActivity() {
     userDataStore.fetchTimeEntries(api)
-    const current = userDataStore.timeEntries.find(entry => entry.endTime === null)
-    if (current) {
-        isActivityVisible.value = true
-    } else {
-        isActivityVisible.value = false
-    }
 }
 
+function fetchObjectives() {
+    userDataStore.fetchDailyObjectives(api)
+}
+
+const completedObjectives = computed(() => {
+    if (!userDataStore.dailyObjectives || userDataStore.dailyObjectives.length === 0) return 0
+    return userDataStore.dailyObjectives.filter(obj => obj.is_done).length
+})
+
+const totalObjectives = computed(() => {
+    if (!userDataStore.dailyObjectives) return 0
+    return userDataStore.dailyObjectives.length
+})
+
 const elapsedTime = computed(() => {
-    if (!currentActivity.value || !currentActivity.value.startTime) return ''
+    const _ = elapsedTimeUpdate.value
+
+    if (!currentActivity.value || !currentActivity.value.start) return ''
+
+    const startTime = new Date(currentActivity.value.start)
+    if (isNaN(startTime)) return ''
+
     const now = new Date()
-    let diff = Math.floor((now - currentActivity.value.startTime) / 1000)
+    let diff = Math.floor((now - startTime) / 1000)
 
     const hours = Math.floor(diff / 3600)
     diff %= 3600
     const minutes = Math.floor(diff / 60)
     const seconds = diff % 60
 
-    let formattedTime = ''
-    if (hours > 0) formattedTime += `${hours} h `
-    if (minutes > 0 || hours > 0) formattedTime += `${String(minutes).padStart(2, '0')} m `
-    formattedTime += `${String(seconds).padStart(2, '0')} s`
+    return [
+        hours > 0 ? `${hours} h` : '',
+        minutes > 0 || hours > 0 ? `${String(minutes).padStart(2, '0')} m` : '',
+        `${String(seconds).padStart(2, '0')} s`
+    ].filter(Boolean).join(' ')
+})
 
-    return formattedTime
+const progressPercentage = computed(() => {
+    if (!currentActivity.value || !currentActivity.value.start) return 0
+
+    const _ = elapsedTimeUpdate.value
+
+    const startTime = new Date(currentActivity.value.start)
+    if (isNaN(startTime)) return 0
+
+    const now = new Date()
+    const elapsedSeconds = Math.floor((now - startTime) / 1000)
+
+    return Math.min(elapsedSeconds / 3600 * 100, 100)
+})
+
+const objectivesProgressPercentage = computed(() => {
+    if (totalObjectives.value === 0) return 0
+    return (completedObjectives.value / totalObjectives.value) * 100
 })
 
 async function stopActivity() {
     if (currentActivity.value) {
-        const endTime = new Date().toISOString()
-
         try {
-            await userDataStore.stopActivity(api, currentActivity, notes) // Utilisation de la fonction stopActivity du store
-            toast.success('Activity stopped', { theme: 'colored' })
+            await userDataStore.stopActivity(api)
             fetchCurrentActivity()
         } catch (error) {
             console.error('Error while stopping activity', error)
-            toast.error('Failed to stop activity', { theme: 'colored' })
         }
-
-        notes.value = ''
     }
 }
 
 onMounted(() => {
     fetchCurrentActivity()
-    setInterval(() => {
+    fetchObjectives()
+    intervalId = setInterval(() => {
         elapsedTimeUpdate.value++
     }, 1000)
+})
+
+onUnmounted(() => {
+    if (intervalId) {
+        clearInterval(intervalId)
+    }
 })
 </script>
 
@@ -85,11 +117,11 @@ onMounted(() => {
         <div v-if="apiKeysStore.hasApiKey && isActivityVisible" class="current-activity">
             <h2>Current Activity</h2>
             <div v-if="currentActivity">
-                <p><strong>Project:</strong> {{ currentActivity.project }}</p>
-                <p><strong>Activity:</strong> {{ currentActivity.activity }}</p>
+                <p><strong>Project:</strong> {{ currentActivity.projectName }}</p>
+                <p><strong>Activity:</strong> {{ currentActivity.activityName }}</p>
                 <p><strong>Time:</strong> {{ elapsedTime }}</p>
-                <div v-if="elapsedTimeUpdate > 0" class="progress-bar">
-                    <div class="progress" :style="{ width: elapsedTimeUpdate + '%' }"></div>
+                <div v-if="currentActivity.start" class="progress-bar">
+                    <div class="progress" :style="{ width: `${progressPercentage}%` }"></div>
                 </div>
                 <button @click="stopActivity" class="stop-activity-button">Stop</button>
             </div>
@@ -99,6 +131,12 @@ onMounted(() => {
         </div>
         <div v-if="apiKeysStore.hasApiKey" class="objectives">
             <h2>Daily</h2>
+            <div class="objectives-counter">
+                <p>{{ completedObjectives }} / {{ totalObjectives }} objectives completed</p>
+                <div class="progress-bar">
+                    <div class="progress" :style="{ width: `${objectivesProgressPercentage}%` }"></div>
+                </div>
+            </div>
         </div>
     </header>
 </template>
@@ -152,6 +190,22 @@ header {
         color: white;
     }
 
+    .objectives {
+        margin-top: 20px;
+        background-color: #444;
+        padding: 15px;
+        border-radius: 5px;
+        color: white;
+
+        .objectives-counter {
+            margin-top: 10px;
+
+            p {
+                margin-bottom: 5px;
+            }
+        }
+    }
+
     .progress-bar {
         width: 100%;
         background-color: #666;
@@ -163,6 +217,7 @@ header {
         .progress {
             height: 100%;
             background-color: #4caf50;
+            transition: width 0.3s ease;
         }
     }
 

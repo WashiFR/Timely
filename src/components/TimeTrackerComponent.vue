@@ -1,31 +1,33 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { userStore } from '@/stores/userData.js'
 import { inject } from 'vue'
-import 'vue3-toastify/dist/index.css'
+import { toast } from 'vue3-toastify'
 
 const api = inject('api')
 const store = userStore()
 
 const selectedProject = ref('')
 const selectedActivity = ref('')
-const currentActivity = ref(null)
 const notes = ref('')
 const startDate = ref('')
 const endDate = ref('')
 const elapsedTimeUpdate = ref(0)
+let intervalId = null
 
 const progressWidth = computed(() => {
-    if (!currentActivity.value || !currentActivity.value.endTime) return '0%'
-    const elapsed = (Date.now() - new Date(currentActivity.value.startTime).getTime()) / 1000
-    const duration = (new Date(currentActivity.value.endTime).getTime() - new Date(currentActivity.value.startTime).getTime()) / 1000
+    const _ = elapsedTimeUpdate.value
+
+    if (!store.currentActivity || !store.currentActivity.end) return '0%'
+    const elapsed = (Date.now() - new Date(store.currentActivity.start).getTime()) / 1000
+    const duration = (new Date(store.currentActivity.end).getTime() - new Date(store.currentActivity.start).getTime()) / 1000
     return `${Math.min((elapsed / duration) * 100, 100)}%`
 })
 
-const elapsedTime = computed(() => {
-    if (!currentActivity.value || !currentActivity.value.startTime) return ''
-    const now = new Date()
-    let diff = Math.floor((now - new Date(currentActivity.value.startTime)) / 1000)
+function calculateElapsedTime(start, end) {
+    const startTime = new Date(start).getTime()
+    const endTime = end ? new Date(end).getTime() : Date.now()
+    let diff = Math.floor((endTime - startTime) / 1000)
 
     const hours = Math.floor(diff / 3600)
     diff %= 3600
@@ -35,26 +37,87 @@ const elapsedTime = computed(() => {
     let formattedTime = ''
     if (hours > 0) formattedTime += `${hours} h `
     if (minutes > 0 || hours > 0) formattedTime += `${String(minutes).padStart(2, '0')} m `
-    formattedTime += `${String(seconds).padStart(2, '0')} s `
+    formattedTime += `${String(seconds).padStart(2, '0')} s`
 
     return formattedTime
+}
+
+const elapsedTime = computed(() => {
+
+    const _ = elapsedTimeUpdate.value
+
+    if (!store.currentActivity || !store.currentActivity.start) return ''
+
+    return calculateElapsedTime(store.currentActivity.start, store.currentActivity.end)
 })
 
 async function fetchData() {
-    await store.fetchProjects(api)
+    await store.fetchEnabledProjects(api)
     await store.fetchActivities(api)
     await store.fetchTimeEntries(api)
 }
 
 onMounted(() => {
     fetchData()
-    setInterval(() => {
+    intervalId = setInterval(() => {
         elapsedTimeUpdate.value++
     }, 1000)
 })
 
-function stopActivity() {
-    store.stopActivity(api, store.currentActivity, notes)
+onUnmounted(() => {
+    if (intervalId) {
+        clearInterval(intervalId)
+    }
+})
+
+watch(endDate, (newEndDate) => {
+    if (startDate.value && newEndDate && new Date(newEndDate) < new Date(startDate.value)) {
+        toast.error("The end date cannot be earlier than the start date.", { autoClose: 3000 })
+        endDate.value = ''
+    }
+})
+
+const isButtonDisabled = computed(() => {
+    if (!startDate.value && !endDate.value) {
+        return false
+    }
+    if (startDate.value && !endDate.value) {
+        return true
+    }
+    if (startDate.value && endDate.value) {
+        return new Date(endDate.value) < new Date(startDate.value)
+    }
+    return false
+})
+
+async function handleStartActivity() {
+    const formattedStart = startDate.value
+        ? new Date(startDate.value).toISOString().replace('T', ' ').substring(0, 19)
+        : null;
+
+    const formattedEnd = endDate.value
+        ? new Date(endDate.value).toISOString().replace('T', ' ').substring(0, 19)
+        : null;
+
+    try {
+        await store.startActivity(api, selectedProject.value, selectedActivity.value, formattedStart, formattedEnd, notes.value);
+    } catch (error) {
+        if (error.response && error.response.data.errors) {
+            error.response.data.errors.forEach(errMsg => {
+                toast.error(errMsg, { autoClose: 3000 });
+            });
+        } else {
+            toast.error("An unexpected error occurred.", { autoClose: 3000 });
+        }
+    }
+}
+
+async function stopActivity() {
+    try {
+        await store.stopActivity(api, store.currentActivity, notes.value);
+    } catch (error) {
+        toast.error("Failed to stop the activity." + error, { autoClose: 3000 });
+    }
 }
 </script>
 
@@ -70,41 +133,59 @@ function stopActivity() {
                     <option disabled value="">Select Activity</option>
                     <option v-for="activity in store.activities" :key="activity.id" :value="activity.id">{{ activity.name }}</option>
                 </select>
+
                 <input type="datetime-local" v-model="startDate" placeholder="Start Date">
-                <input type="datetime-local" v-model="endDate" placeholder="End Date">
+
+                <input
+                    v-if="startDate"
+                    type="datetime-local"
+                    v-model="endDate"
+                    placeholder="End Date"
+                    :min="startDate"
+                >
+
                 <textarea v-model="notes" placeholder="Add a comment..."></textarea>
-                <button @click="startActivity">Start Activity</button>
+
+                <button @click="handleStartActivity" :disabled="isButtonDisabled">Start Activity</button>
             </div>
+
             <div class="current-activity" v-if="store.currentActivity">
                 <h3>{{ store.currentActivity.projectName }}</h3>
                 <p>{{ store.currentActivity.activityName }}</p>
                 <p>Duration: {{ elapsedTime }}</p>
-                <div class="progress-bar" v-if="store.currentActivity.endTime">
+
+                <div class="progress-bar" v-if="store.currentActivity.end">
                     <div
                         class="progress"
                         :style="{ width: progressWidth }"
-                        title="Start: {{ new Date(store.currentActivity.startTime).toLocaleString() }} - End: {{ new Date(store.currentActivity.endTime).toLocaleString() }}"
+                        title="Start: {{ new Date(store.currentActivity.start).toLocaleString() }} - End: {{ new Date(store.currentActivity.end).toLocaleString() }}"
                     ></div>
                 </div>
-                <p v-if="!store.currentActivity.endTime">No End Time Set</p>
+
+                <p v-if="!store.currentActivity.end">No End Time Set</p>
                 <textarea v-model="notes" placeholder="Take notes..."></textarea>
                 <button @click="stopActivity" class="stop-activity-button">Stop Activity</button>
             </div>
         </div>
+
         <div class="time-entries">
             <h3>Previous Entries</h3>
-            <div v-for="entry in store.timeEntries" :key="entry.id" class="previous-entry">
-                <h4>{{ entry.projectName }} - {{ entry.activityName }}</h4>
-                <p>Duration: {{ elapsedTime }}</p>
-                <div class="progress-bar" v-if="entry.endTime">
-                    <div
-                        class="progress"
-                        :style="{ width: (new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime()) / (new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime()) * 100 + '%' }"
-                        title="Start: {{ new Date(entry.startTime).toLocaleString() }} - End: {{ new Date(entry.endTime).toLocaleString() }}"
-                    ></div>
+            <div class="entries-list">
+                <div v-for="entry in store.timeEntries" :key="entry.id" class="previous-entry">
+                    <h4>{{ entry.projectName }} - {{ entry.activityName }}</h4>
+                    <p>Duration: {{ calculateElapsedTime(entry.start, entry.end) }}</p>
+
+                    <div class="progress-bar" v-if="entry.end">
+                        <div
+                            class="progress"
+                            :style="{ width: '100%' }"
+                            title="Start: {{ new Date(entry.start).toLocaleString() }} - End: {{ new Date(entry.end).toLocaleString() }}"
+                        ></div>
+                    </div>
+
+                    <p v-if="!entry.end">No End Time Set</p>
+                    <textarea v-model="entry.comment" readonly placeholder="Comment..."></textarea>
                 </div>
-                <p v-if="!entry.endTime">No End Time Set</p>
-                <textarea v-model="entry.comment" readonly placeholder="Comment..."></textarea>
             </div>
         </div>
     </div>
@@ -117,15 +198,15 @@ function stopActivity() {
 
 .time-tracker {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    gap: 20px;
+    justify-content: center;
     margin-top: 20px;
 }
 
 .activity-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     width: 100%;
     max-width: 800px;
     gap: 20px;
@@ -146,6 +227,13 @@ function stopActivity() {
     padding: 15px;
     background-color: #f4f4f4;
     border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.entries-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
 select, input[type="datetime-local"], textarea, button {
@@ -194,5 +282,10 @@ textarea {
 
 .stop-activity-button:hover {
     background-color: #c1351d;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 </style>

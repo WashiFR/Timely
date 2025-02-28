@@ -36,7 +36,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update'])
 const api = inject('api')
-
 const store = userStore()
 
 let isActive = ref(props.activity.is_enabled === 1)
@@ -45,18 +44,13 @@ let activityColor = ref(props.activity.color)
 let showPopup = ref(false)
 
 async function toggleActivity() {
-    // Utilisation du store pour basculer l'activité
     await store.toggleActivity(api, props.activity, isActive.value)
-
-    // Émettre les modifications vers le parent
     emit('update', { ...props.activity, is_enabled: isActive.value ? 1 : 0 })
 }
 
 async function updateActivity() {
     await store.updateActivity(api, props.activity, activityName.value, activityColor.value)
-
     emit('update', { ...props.activity, name: activityName.value, color: activityColor.value })
-
     closePopup()
 }
 

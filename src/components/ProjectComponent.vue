@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, inject } from 'vue'
+import { ref, watch, inject } from 'vue'
 import Popup from '@/components/PopupComponent.vue'
 import { toast } from "vue3-toastify";
 import 'vue3-toastify/dist/index.css';
