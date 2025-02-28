@@ -26,17 +26,19 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, inject } from 'vue'
 import Popup from '@/components/PopupComponent.vue'
 import { toast } from "vue3-toastify";
 import 'vue3-toastify/dist/index.css';
-import { inject } from 'vue';
+import { userStore } from '@/stores/userData.js';
 
 const props = defineProps({
     project: Object
 })
 
 const emit = defineEmits(['update'])
+
+const userDataStore = userStore()
 const api = inject('api')
 
 let isActive = ref(props.project.is_enabled === 1)
@@ -45,9 +47,8 @@ let projectDescription = ref(props.project.description)
 let showPopup = ref(false)
 
 async function toggleProject() {
-    const endpoint = isActive.value ? 'disable' : 'enable'
     try {
-        await api.patch(`/api/projects/${props.project.id}/${endpoint}`)
+        await userDataStore.toggleProject(api, props.project, isActive.value)
         toast.success(`Project ${isActive.value ? 'disabled' : 'enabled'}`, { theme: 'colored' })
         emit('update', { ...props.project, is_enabled: isActive.value ? 1 : 0 })
     } catch (error) {
@@ -58,10 +59,7 @@ async function toggleProject() {
 
 async function updateProject() {
     try {
-        await api.put(`/api/projects/${props.project.id}`, {
-            name: projectName.value,
-            description: projectDescription.value,
-        })
+        await userDataStore.updateProjectDetails(api, props.project, projectName.value, projectDescription.value) // Appel de la fonction du store pour mettre à jour
         toast.success('Project updated', { theme: 'colored' })
         emit('update', { ...props.project, name: projectName.value, description: projectDescription.value })
         closePopup()

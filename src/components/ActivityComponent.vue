@@ -27,9 +27,8 @@
 <script setup>
 import { ref, watch } from 'vue'
 import Popup from '@/components/PopupComponent.vue'
-import { toast } from "vue3-toastify";
-import 'vue3-toastify/dist/index.css';
-import { inject } from 'vue';
+import { userStore } from '@/stores/userData.js'
+import { inject } from 'vue'
 
 const props = defineProps({
     activity: Object
@@ -38,36 +37,27 @@ const props = defineProps({
 const emit = defineEmits(['update'])
 const api = inject('api')
 
+const store = userStore()
+
 let isActive = ref(props.activity.is_enabled === 1)
 let activityName = ref(props.activity.name)
 let activityColor = ref(props.activity.color)
 let showPopup = ref(false)
 
 async function toggleActivity() {
-    const endpoint = isActive.value ? 'disable' : 'enable'
-    try {
-        await api.patch(`/api/activities/${props.activity.id}/${endpoint}`)
-        toast.success(`Activity ${isActive.value ? 'disabled' : 'enabled'}`, { theme: 'colored' })
-        emit('update', { ...props.activity, is_enabled: isActive.value ? 1 : 0 })
-    } catch (error) {
-        console.error(`Error while ${isActive.value ? 'disabling' : 'enabling'} activity`)
-        toast.error(`Failed to ${isActive.value ? 'disable' : 'enable'} activity`, { theme: 'colored' })
-    }
+    // Utilisation du store pour basculer l'activité
+    await store.toggleActivity(api, props.activity, isActive.value)
+
+    // Émettre les modifications vers le parent
+    emit('update', { ...props.activity, is_enabled: isActive.value ? 1 : 0 })
 }
 
 async function updateActivity() {
-    try {
-        await api.put(`/api/activities/${props.activity.id}`, {
-            name: activityName.value,
-            color: activityColor.value,
-        })
-        toast.success('Activity updated', { theme: 'colored' })
-        emit('update', { ...props.activity, name: activityName.value, color: activityColor.value })
-        closePopup()
-    } catch (error) {
-        console.error('Error while updating activity')
-        toast.error('Failed to update activity', { theme: 'colored' })
-    }
+    await store.updateActivity(api, props.activity, activityName.value, activityColor.value)
+
+    emit('update', { ...props.activity, name: activityName.value, color: activityColor.value })
+
+    closePopup()
 }
 
 function openPopup() {

@@ -1,49 +1,36 @@
 <script setup>
 import { inject, onMounted, ref, computed } from 'vue'
-import { toast } from "vue3-toastify";
+import { userStore } from '@/stores/userData.js'
 import 'vue3-toastify/dist/index.css';
 import Popup from '@/components/PopupComponent.vue'
 import ProjectComponent from '@/components/ProjectComponent.vue'
 
 const api = inject('api')
 
-let projects = ref([])
+// Access the store
+const store = userStore()
+
 let search = ref('')
 let showPopup = ref(false)
 let newProjectName = ref('')
 let newProjectDescription = ref('')
 
 const filteredProjects = computed(() => {
-    return projects.value.filter(project =>
+    return store.projects.filter(project =>
         project.name.toLowerCase().includes(search.value.toLowerCase()) ||
         project.description.toLowerCase().includes(search.value.toLowerCase())
     )
 })
 
-async function fetchGetProjects() {
-    try {
-        let response = await api.get('/api/projects')
-        projects.value = response.data.filter(project => project.is_enabled === 1)
-        console.log(projects.value)
-    } catch (error) {
-        console.error('Error while fetching projects')
-        return Promise.reject(error)
-    }
+async function fetchProjects() {
+    // Use store to fetch projects
+    await store.fetchAllProjects(api)
 }
 
 async function createProject() {
-    try {
-        await api.post('/api/projects', {
-            name: newProjectName.value,
-            description: newProjectDescription.value,
-        })
-        toast.success('Project created', { theme: 'colored' })
-        fetchGetProjects()
-        closePopup()
-    } catch (error) {
-        console.error('Error while creating project')
-        toast.error('Failed to create project', { theme: 'colored' })
-    }
+    // Use store method to create a project
+    await store.createProject(api, newProjectName.value, newProjectDescription.value)
+    closePopup() // Close the popup after creating the project
 }
 
 function openPopup() {
@@ -57,14 +44,11 @@ function closePopup() {
 }
 
 function handleProjectUpdate(updatedProject) {
-    const index = projects.value.findIndex(project => project.id === updatedProject.id)
-    if (index !== -1) {
-        projects.value[index] = updatedProject
-    }
+    store.updateProject(updatedProject) // Use store to update project
 }
 
 onMounted(() => {
-    fetchGetProjects()
+    fetchProjects() // Fetch projects when the component is mounted
 })
 </script>
 
