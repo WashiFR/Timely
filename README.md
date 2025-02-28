@@ -1,3 +1,7 @@
+https://github.com/WashiFR/Timely
+
+COLSON Lenny WEIER Loris
+
 # Timely
 
 This template should help get you started developing with Vue 3 in Vite.
